@@ -13,7 +13,8 @@ struct ContentView: View {
                         Text(item.name)
                             .font(.headline)
                         
-                        switch systemManager.downloadStatuses[item.id] {
+                        let status = systemManager.downloadStatuses[item.id] ?? .notDownloaded
+                        switch status {
                         case .notDownloaded:
                             Button("下载") {
                                 systemManager.download(item)
@@ -37,8 +38,6 @@ struct ContentView: View {
                                 }
                                 .foregroundColor(.red)
                             }
-                        default:
-                            EmptyView()
                         }
                     }
                     .padding(.vertical, 4)
@@ -54,7 +53,7 @@ struct ContentView: View {
     }
 }
 
-// 简单虚拟机视图（原来你可能会替换为真实的 QEMU 界面）
+// 虚拟机视图（后续可替换为真实 QEMU 画面）
 struct VMView: View {
     let imagePath: String
     @Environment(\.dismiss) var dismiss
