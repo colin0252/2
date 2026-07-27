@@ -25,6 +25,7 @@
 		AA0000000000024 /* VMManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMManager.swift; sourceTree = "<group>"; };
 		AA0000000000026 /* Bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Bridge.c; sourceTree = "<group>"; };
 		AA0000000000027 /* Bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bridge.h; sourceTree = "<group>"; };
+		AA0000000000028 /* StikDebug-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "StikDebug-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -45,6 +46,7 @@
 				AA0000000000024 /* VMManager.swift */,
 				AA0000000000027 /* Bridge.h */,
 				AA0000000000026 /* Bridge.c */,
+				AA0000000000028 /* StikDebug-Bridging-Header.h */,
 				AA0000000000004 /* Assets.xcassets */,
 				AA0000000000005 /* Info.plist */,
 				AA0000000000006 /* StikDebug.entitlements */,
@@ -160,6 +162,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_OBJC_BRIDGING_HEADER = StikDebug/StikDebug-Bridging-Header.h;
 			};
 			name = Debug;
 		};
@@ -185,6 +188,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_OBJC_BRIDGING_HEADER = StikDebug/StikDebug-Bridging-Header.h;
 			};
 			name = Release;
 		};
