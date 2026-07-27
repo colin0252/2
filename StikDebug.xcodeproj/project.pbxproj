@@ -11,6 +11,8 @@
 		AA0000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000004 /* Assets.xcassets */; };
 		AA0000000000019 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000020 /* ContentView.swift */; };
 		AA0000000000021 /* SystemManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000022 /* SystemManager.swift */; };
+		AA0000000000023 /* VMManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000024 /* VMManager.swift */; };
+		AA0000000000025 /* Bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000026 /* Bridge.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +22,9 @@
 		AA0000000000006 /* StikDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = StikDebug.entitlements; sourceTree = "<group>"; };
 		AA0000000000020 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000000000022 /* SystemManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemManager.swift; sourceTree = "<group>"; };
+		AA0000000000024 /* VMManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMManager.swift; sourceTree = "<group>"; };
+		AA0000000000026 /* Bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Bridge.c; sourceTree = "<group>"; };
+		AA0000000000027 /* Bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bridge.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -37,6 +42,9 @@
 				AA0000000000002 /* DeltaApp.swift */,
 				AA0000000000020 /* ContentView.swift */,
 				AA0000000000022 /* SystemManager.swift */,
+				AA0000000000024 /* VMManager.swift */,
+				AA0000000000027 /* Bridge.h */,
+				AA0000000000026 /* Bridge.c */,
 				AA0000000000004 /* Assets.xcassets */,
 				AA0000000000005 /* Info.plist */,
 				AA0000000000006 /* StikDebug.entitlements */,
@@ -122,6 +130,8 @@
 				AA0000000000001 /* DeltaApp.swift in Sources */,
 				AA0000000000019 /* ContentView.swift in Sources */,
 				AA0000000000021 /* SystemManager.swift in Sources */,
+				AA0000000000023 /* VMManager.swift in Sources */,
+				AA0000000000025 /* Bridge.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
