@@ -1,14 +1,12 @@
 import Foundation
 import Combine
 
-// 单个系统模型
 struct SystemItem: Identifiable, Codable {
     let id: String
     let name: String
-    let url: String   // 镜像下载地址（zip/raw）
+    let url: String
 }
 
-// 下载状态
 enum DownloadStatus {
     case notDownloaded
     case downloading(progress: Double)
@@ -16,15 +14,15 @@ enum DownloadStatus {
 }
 
 class SystemManager: ObservableObject {
-    // 内置的系统列表（你可以在下面随意增删改）
+    // 👇 你自己的下载链接（已经填好）
     let systems: [SystemItem] = [
-        SystemItem(id: "android9", name: "Android 9.0", url: "https://your-cdn.com/android9.zip"),
-        SystemItem(id: "android11", name: "Android 11.0", url: "https://your-cdn.com/android11.zip"),
-        SystemItem(id: "lineageos20", name: "LineageOS 20", url: "https://your-cdn.com/lineage20.zip")
+        SystemItem(id: "android8", name: "Android 8.1 x86", url: "https://github.com/colin0252/an-zhuo-xi-tong-jing-xiang/releases/download/v1.0.0/-x86-8.1-r6.iso"),
+        SystemItem(id: "android9", name: "Android 9.0 x86_64", url: "https://github.com/colin0252/an-zhuo-xi-tong-jing-xiang/releases/download/v1.0.1/android-x86_64-9.0-r2.iso")
     ]
     
     @Published var downloadStatuses: [String: DownloadStatus] = [:]
     @Published var isDownloading: Bool = false
+    @Published var errorMessage: String? = nil
     
     private let defaultsKey = "downloadedImages"
     
@@ -32,7 +30,6 @@ class SystemManager: ObservableObject {
         loadDownloadedPaths()
     }
     
-    // 加载已下载记录
     private func loadDownloadedPaths() {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey),
               let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
@@ -45,7 +42,6 @@ class SystemManager: ObservableObject {
         }
     }
     
-    // 保存已下载记录
     private func saveDownloadedPaths() {
         var dict = [String: String]()
         for (id, status) in downloadStatuses {
@@ -58,46 +54,41 @@ class SystemManager: ObservableObject {
         }
     }
     
-    // 开始下载某个系统
     func download(_ item: SystemItem) {
         guard !isDownloading else { return }
         isDownloading = true
         downloadStatuses[item.id] = .downloading(progress: 0)
         
         let documents = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-        let destDir = (documents as NSString).appendingPathComponent(item.id) // 每个镜像放自己的文件夹
-        
-        // 创建目录
-        try? FileManager.default.createDirectory(atPath: destDir, withIntermediateDirectories: true, attributes: nil)
-        
-        let destZip = (destDir as NSString).appendingPathComponent("image.zip")
+        let destDir = (documents as NSString).appendingPathComponent(item.id)
+        try? FileManager.default.createDirectory(atPath: destDir, withIntermediateDirectories: true)
+        let destPath = (destDir as NSString).appendingPathComponent(item.url.components(separatedBy: "/").last ?? "image.iso")
         
         guard let url = URL(string: item.url) else {
             isDownloading = false
             downloadStatuses[item.id] = .notDownloaded
+            errorMessage = "下载地址无效"
             return
         }
         
         let task = URLSession.shared.downloadTask(with: url) { tempURL, response, error in
             DispatchQueue.main.async { [weak self] in
                 self?.isDownloading = false
-                guard let self = self, let tempURL = tempURL, error == nil else {
+                if let error = error {
                     self?.downloadStatuses[item.id] = .notDownloaded
+                    self?.errorMessage = "下载失败：\(error.localizedDescription)"
                     return
                 }
-                
-                // 移动zip到目标位置
-                try? FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destZip))
-                
-                // 模拟解压（你需要集成真正的解压库，这里简化为假设解压后得到 android.img）
-                let imagePath = (destDir as NSString).appendingPathComponent("android.img")
-                
-                self.downloadStatuses[item.id] = .downloaded(localPath: imagePath)
+                guard let self = self, let tempURL = tempURL else {
+                    self?.downloadStatuses[item.id] = .notDownloaded
+                    self?.errorMessage = "下载失败：文件不存在"
+                    return
+                }
+                try? FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destPath))
+                self.downloadStatuses[item.id] = .downloaded(localPath: destPath)
                 self.saveDownloadedPaths()
             }
         }
-        
-        // 监听下载进度（消除未使用变量警告）
         _ = task.progress.observe(\.fractionCompleted) { [weak self] prog, _ in
             DispatchQueue.main.async {
                 self?.downloadStatuses[item.id] = .downloading(progress: prog.fractionCompleted)
@@ -106,11 +97,9 @@ class SystemManager: ObservableObject {
         task.resume()
     }
     
-    // 删除某个已下载系统
     func delete(_ item: SystemItem) {
         if case .downloaded(let path) = downloadStatuses[item.id] {
-            let dir = (path as NSString).deletingLastPathComponent
-            try? FileManager.default.removeItem(atPath: dir)
+            try? FileManager.default.removeItem(atPath: path)
         }
         downloadStatuses[item.id] = .notDownloaded
         saveDownloadedPaths()
