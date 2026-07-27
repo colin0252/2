@@ -54,7 +54,7 @@ class SystemManager: ObservableObject {
             }
         }
         if let data = try? JSONEncoder().encode(dict) {
-            UserDefaults.default.set(data, forKey: defaultsKey)
+            UserDefaults.standard.set(data, forKey: defaultsKey)
         }
     }
     
@@ -90,17 +90,15 @@ class SystemManager: ObservableObject {
                 try? FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destZip))
                 
                 // 模拟解压（你需要集成真正的解压库，这里简化为假设解压后得到 android.img）
-                // 实际中请使用 SSZipArchive 等库解压，然后将镜像路径记为:
-                // let imagePath = (destDir as NSString).appendingPathComponent("android.img")
-                // 下面直接假设解压成功，镜像就是 destZip 的同目录下 android.img
                 let imagePath = (destDir as NSString).appendingPathComponent("android.img")
                 
                 self.downloadStatuses[item.id] = .downloaded(localPath: imagePath)
                 self.saveDownloadedPaths()
             }
         }
-        // 进度监听（可选）
-        let observation = task.progress.observe(\.fractionCompleted) { [weak self] prog, _ in
+        
+        // 监听下载进度（消除未使用变量警告）
+        _ = task.progress.observe(\.fractionCompleted) { [weak self] prog, _ in
             DispatchQueue.main.async {
                 self?.downloadStatuses[item.id] = .downloading(progress: prog.fractionCompleted)
             }
