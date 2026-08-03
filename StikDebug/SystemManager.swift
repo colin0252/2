@@ -6,7 +6,6 @@ struct SystemItem: Identifiable, Codable {
     let id: String
     let name: String
     let url: String
-    // 是否为本地导入的镜像（用于区分）
     var isLocal: Bool = false
 }
 
@@ -17,13 +16,12 @@ enum DownloadStatus {
 }
 
 class SystemManager: ObservableObject {
-    // 内置的系统列表
+    // 内置下载列表（请确保这些链接在浏览器中打开能直接下载）
     let builtinSystems: [SystemItem] = [
         SystemItem(id: "android8", name: "Android 8.1 x86", url: "https://github.com/colin0252/an-zhuo-xi-tong-jing-xiang/releases/download/v1.0.0/-x86-8.1-r6.iso"),
         SystemItem(id: "android9", name: "Android 9.0 x86_64", url: "https://github.com/colin0252/an-zhuo-xi-tong-jing-xiang/releases/download/v1.0.1/android-x86_64-9.0-r2.iso")
     ]
     
-    // 所有系统列表（内置 + 导入的）
     @Published var systems: [SystemItem] = []
     @Published var downloadStatuses: [String: DownloadStatus] = [:]
     @Published var isDownloading: Bool = false
@@ -36,23 +34,16 @@ class SystemManager: ObservableObject {
         loadSystems()
     }
     
-    // MARK: - 系统列表管理
-    
     private func loadSystems() {
-        // 加载内置系统
         systems = builtinSystems
-        // 加载之前导入的本地镜像
         if let data = UserDefaults.standard.data(forKey: localImagesKey),
            let localItems = try? JSONDecoder().decode([SystemItem].self, from: data) {
             systems.append(contentsOf: localItems)
         }
-        // 恢复下载状态
         loadDownloadedPaths()
-        // 扫描 Documents 下可能通过 iTunes 直接放入的镜像
         scanForLocalImages()
     }
     
-    // 扫描沙盒根目录下的 .img / .iso 文件，自动添加到列表（如果尚未添加）
     func scanForLocalImages() {
         let docs = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         let fm = FileManager.default
@@ -61,7 +52,6 @@ class SystemManager: ObservableObject {
             let ext = (file as NSString).pathExtension.lowercased()
             if ext == "img" || ext == "iso" {
                 let fullPath = (docs as NSString).appendingPathComponent(file)
-                // 检查是否已经在系统中（通过路径）
                 let alreadyExists = systems.contains { item in
                     if case .downloaded(let path) = downloadStatuses[item.id] {
                         return path == fullPath
@@ -75,13 +65,12 @@ class SystemManager: ObservableObject {
                                              isLocal: true)
                     systems.append(newItem)
                     downloadStatuses[newItem.id] = .downloaded(localPath: fullPath)
-                    saveLocalItems()
                 }
             }
         }
+        saveLocalItems()
     }
     
-    // 导入外部文件：从 URL 复制到 App 内部目录，并添加系统
     func importImage(from url: URL) {
         let docs = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         let importedDir = (docs as NSString).appendingPathComponent("Imported")
@@ -90,7 +79,6 @@ class SystemManager: ObservableObject {
         let fileName = url.lastPathComponent
         let destPath = (importedDir as NSString).appendingPathComponent(fileName)
         
-        // 复制文件
         do {
             if FileManager.default.fileExists(atPath: destPath) {
                 try FileManager.default.removeItem(atPath: destPath)
@@ -103,7 +91,6 @@ class SystemManager: ObservableObject {
             return
         }
         
-        // 创建新系统项
         let newItem = SystemItem(id: UUID().uuidString,
                                  name: fileName,
                                  url: destPath,
@@ -123,14 +110,12 @@ class SystemManager: ObservableObject {
         }
     }
     
-    // 删除某个系统（如果是本地镜像，同时删除文件）
     func delete(_ item: SystemItem) {
         if let index = systems.firstIndex(where: { $0.id == item.id }) {
             systems.remove(at: index)
         }
         if case .downloaded(let path) = downloadStatuses[item.id] {
             if item.isLocal {
-                // 删除导入的文件
                 try? FileManager.default.removeItem(atPath: path)
             }
         }
@@ -139,13 +124,9 @@ class SystemManager: ObservableObject {
         saveDownloadedPaths()
     }
     
-    // MARK: - 下载管理（同之前）
-    
     private func loadDownloadedPaths() {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
-            return
-        }
+              let dict = try? JSONDecoder().decode([String: String].self, from: data) else { return }
         for (id, path) in dict {
             if FileManager.default.fileExists(atPath: path) {
                 downloadStatuses[id] = .downloaded(localPath: path)
@@ -178,28 +159,40 @@ class SystemManager: ObservableObject {
         guard let url = URL(string: item.url) else {
             isDownloading = false
             downloadStatuses[item.id] = .notDownloaded
-            errorMessage = "下载地址无效"
+            errorMessage = "下载地址格式错误，请检查链接"
             return
         }
         
-        let task = URLSession.shared.downloadTask(with: url) { tempURL, response, error in
-            DispatchQueue.main.async { [weak self] in
+        let task = URLSession.shared.downloadTask(with: url) { [weak self] tempURL, response, error in
+            DispatchQueue.main.async {
                 self?.isDownloading = false
                 if let error = error {
                     self?.downloadStatuses[item.id] = .notDownloaded
                     self?.errorMessage = "下载失败：\(error.localizedDescription)"
                     return
                 }
-                guard let self = self, let tempURL = tempURL else {
+                // 检查 HTTP 状态码
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
                     self?.downloadStatuses[item.id] = .notDownloaded
-                    self?.errorMessage = "下载失败：文件不存在"
+                    self?.errorMessage = "下载失败：服务器返回状态码 \(httpResponse.statusCode)"
                     return
                 }
-                try? FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destPath))
-                self.downloadStatuses[item.id] = .downloaded(localPath: destPath)
-                self.saveDownloadedPaths()
+                guard let self = self, let tempURL = tempURL else {
+                    self?.downloadStatuses[item.id] = .notDownloaded
+                    self?.errorMessage = "下载失败：未获取到文件"
+                    return
+                }
+                do {
+                    try FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destPath))
+                    self.downloadStatuses[item.id] = .downloaded(localPath: destPath)
+                    self.saveDownloadedPaths()
+                } catch {
+                    self.downloadStatuses[item.id] = .notDownloaded
+                    self.errorMessage = "文件保存失败：\(error.localizedDescription)"
+                }
             }
         }
+        // 监听进度
         _ = task.progress.observe(\.fractionCompleted) { [weak self] prog, _ in
             DispatchQueue.main.async {
                 self?.downloadStatuses[item.id] = .downloading(progress: prog.fractionCompleted)
