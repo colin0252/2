@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 extension String: Identifiable {
     public var id: String { self }
@@ -8,14 +9,22 @@ struct ContentView: View {
     @StateObject private var systemManager = SystemManager()
     @State private var showVM = false
     @State private var selectedImagePath: String? = nil
+    @State private var isImporting = false
     
     var body: some View {
         NavigationView {
             List {
                 ForEach(systemManager.systems) { item in
                     VStack(alignment: .leading) {
-                        Text(item.name).font(.headline)
-                        let status = systemManager.downloadStatuses[item.id] ?? .notDownloaded
+                        HStack {
+                            Text(item.name)
+                                .font(.headline)
+                            if item.isLocal {
+                                Image(systemName: "folder")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        let status = systemManager.downloadStatuses[item.id] ?? (item.isLocal ? .downloaded(localPath: item.url) : .notDownloaded)
                         switch status {
                         case .notDownloaded:
                             Button("下载") { systemManager.download(item) }
@@ -27,8 +36,14 @@ struct ContentView: View {
                             HStack {
                                 Text("已下载").foregroundColor(.green)
                                 Spacer()
-                                Button("启动") { selectedImagePath = path; showVM = true }
-                                Button("删除") { systemManager.delete(item) }.foregroundColor(.red)
+                                Button("启动") {
+                                    selectedImagePath = path
+                                    showVM = true
+                                }
+                                Button("删除") {
+                                    systemManager.delete(item)
+                                }
+                                .foregroundColor(.red)
                             }
                         }
                     }
@@ -36,18 +51,46 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("选择安卓系统")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        isImporting = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .imageScale(.large)
+                    }
+                }
+            }
             .fullScreenCover(isPresented: $showVM) {
                 if let path = selectedImagePath {
                     VMView(imagePath: path)
+                }
+            }
+            .fileImporter(isPresented: $isImporting,
+                          allowedContentTypes: [UTType(filenameExtension: "img") ?? .data,
+                                               UTType(filenameExtension: "iso") ?? .data,
+                                               UTType(filenameExtension: "zip") ?? .data],
+                          allowsMultipleSelection: false) { result in
+                switch result {
+                case .success(let urls):
+                    if let url = urls.first {
+                        systemManager.importImage(from: url)
+                    }
+                case .failure(let error):
+                    systemManager.errorMessage = "文件选择失败：\(error.localizedDescription)"
                 }
             }
             .alert(item: $systemManager.errorMessage) { msg in
                 Alert(title: Text("错误"), message: Text(msg), dismissButton: .default(Text("好")))
             }
         }
+        .onAppear {
+            systemManager.scanForLocalImages()
+        }
     }
 }
 
+// VMView 保持不变，这里略（与之前相同）
 struct VMView: View {
     let imagePath: String
     @Environment(\.dismiss) var dismiss
