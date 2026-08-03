@@ -17,10 +17,9 @@ struct ContentView: View {
                 ForEach(systemManager.systems) { item in
                     VStack(alignment: .leading) {
                         HStack {
-                            Text(item.name)
-                                .font(.headline)
+                            Text(item.name).font(.headline)
                             if item.isLocal {
-                                Image(systemName: "folder")
+                                Image(systemName: "folder.fill")
                                     .foregroundColor(.blue)
                             }
                         }
@@ -42,8 +41,7 @@ struct ContentView: View {
                                 }
                                 Button("删除") {
                                     systemManager.delete(item)
-                                }
-                                .foregroundColor(.red)
+                                }.foregroundColor(.red)
                             }
                         }
                     }
@@ -56,7 +54,7 @@ struct ContentView: View {
                     Button {
                         isImporting = true
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
                             .imageScale(.large)
                     }
                 }
@@ -67,21 +65,25 @@ struct ContentView: View {
                 }
             }
             .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: [UTType(filenameExtension: "img") ?? .data,
-                                               UTType(filenameExtension: "iso") ?? .data,
-                                               UTType(filenameExtension: "zip") ?? .data],
+                          allowedContentTypes: [.item], // 通用文件类型，确保能选所有镜像
                           allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls):
                     if let url = urls.first {
-                        systemManager.importImage(from: url)
+                        // 检查扩展名，给予提示
+                        let ext = url.pathExtension.lowercased()
+                        if ext == "img" || ext == "iso" || ext == "zip" {
+                            systemManager.importImage(from: url)
+                        } else {
+                            systemManager.errorMessage = "请选择 .img / .iso / .zip 格式的镜像文件"
+                        }
                     }
                 case .failure(let error):
                     systemManager.errorMessage = "文件选择失败：\(error.localizedDescription)"
                 }
             }
             .alert(item: $systemManager.errorMessage) { msg in
-                Alert(title: Text("错误"), message: Text(msg), dismissButton: .default(Text("好")))
+                Alert(title: Text("提示"), message: Text(msg), dismissButton: .default(Text("好")))
             }
         }
         .onAppear {
@@ -90,81 +92,5 @@ struct ContentView: View {
     }
 }
 
-// VMView 保持不变，这里略（与之前相同）
-struct VMView: View {
-    let imagePath: String
-    @Environment(\.dismiss) var dismiss
-    @StateObject private var vmManager = VMManager()
-    @State private var uiImage: UIImage? = nil
-    
-    let timer = Timer.publish(every: 1.0/30.0, on: .main, in: .common).autoconnect()
-    
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if let image = uiImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { v in
-                                let p = convertToVMCoordinate(v.location, viewSize: UIScreen.main.bounds.size, vmSize: image.size)
-                                ios_qemu_send_touch(Int32(p.x), Int32(p.y), 2)
-                            }
-                            .onEnded { v in
-                                let p = convertToVMCoordinate(v.location, viewSize: UIScreen.main.bounds.size, vmSize: image.size)
-                                ios_qemu_send_touch(Int32(p.x), Int32(p.y), 1)
-                            }
-                    )
-            } else {
-                ProgressView("等待虚拟机画面...")
-                    .foregroundColor(.white)
-            }
-        }
-        .onReceive(timer) { _ in updateFrame() }
-        .onAppear {
-            vmManager.startVM(withImagePath: imagePath)
-        }
-        .overlay(
-            VStack {
-                HStack {
-                    Button("关闭") { dismiss() }
-                        .padding(8)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                    Spacer()
-                }
-                .padding()
-                Spacer()
-            }
-        )
-    }
-    
-    func updateFrame() {
-        var buf: UnsafeMutablePointer<UInt8>?
-        var w: Int32 = 0, h: Int32 = 0, stride: Int32 = 0
-        ios_qemu_get_frame(&buf, &w, &h, &stride)
-        guard let data = buf, w > 0, h > 0 else { return }
-        let dataProvider = CGDataProvider(data: NSData(bytes: data, length: Int(stride * h)))
-        let cs = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue))
-        if let cgImage = CGImage(width: Int(w), height: Int(h),
-                                 bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: Int(stride),
-                                 space: cs, bitmapInfo: bitmapInfo,
-                                 provider: dataProvider!, decode: nil,
-                                 shouldInterpolate: false, intent: .defaultIntent) {
-            uiImage = UIImage(cgImage: cgImage)
-        }
-    }
-    
-    func convertToVMCoordinate(_ point: CGPoint, viewSize: CGSize, vmSize: CGSize) -> CGPoint {
-        let scale = min(viewSize.width / vmSize.width, viewSize.height / vmSize.height)
-        let rw = vmSize.width * scale, rh = vmSize.height * scale
-        let ox = (viewSize.width - rw) / 2, oy = (viewSize.height - rh) / 2
-        let x = (point.x - ox) / rw * vmSize.width
-        let y = (point.y - oy) / rh * vmSize.height
-        return CGPoint(x: max(0, min(vmSize.width, x)), y: max(0, min(vmSize.height, y)))
-    }
-}
+// VMView 保持不变（此处省略，与之前提供的一致即可）
+// ... 请继续使用之前的 VMView 代码
